@@ -1,0 +1,671 @@
+import {
+  getDefaultSidebarWidth,
+  getLabel,
+  MissingIcon,
+} from '@react-navigation/elements';
+import {
+  CommonActions,
+  NavigationContext,
+  type NavigationHelpers,
+  NavigationRouteContext,
+  type ParamListBase,
+  type TabNavigationState,
+  useLinkBuilder,
+  useLocale,
+  useTheme,
+} from '@react-navigation/native';
+import React from 'react';
+import {
+  Animated,
+  type LayoutChangeEvent,
+  Platform,
+  ScrollView,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
+import {
+  type EdgeInsets,
+  useSafeAreaFrame,
+} from 'react-native-safe-area-context';
+
+import type {
+  BottomTabBarProps,
+  BottomTabDescriptorMap,
+  BottomTabNavigationEventMap,
+  BottomTabNavigationOptions,
+} from '../types';
+import { BottomTabBarHeightCallbackContext } from '../utils/BottomTabBarHeightCallbackContext';
+import { useIsKeyboardShown } from '../utils/useIsKeyboardShown';
+import { BottomTabItem } from './BottomTabItem';
+
+type Props = BottomTabBarProps & {
+  style?: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
+};
+
+const TABBAR_HEIGHT_UIKIT = 49;
+const TABBAR_HEIGHT_UIKIT_COMPACT = 32;
+const SPACING_UIKIT = 15;
+const SPACING_MATERIAL = 12;
+const DEFAULT_MAX_TAB_ITEM_WIDTH = 125;
+
+const useNativeDriver = Platform.OS !== 'web';
+
+type Options = {
+  state: TabNavigationState<ParamListBase>;
+  descriptors: BottomTabDescriptorMap;
+  dimensions: { height: number; width: number };
+};
+
+const shouldUseHorizontalLabels = ({
+  state,
+  descriptors,
+  dimensions,
+}: Options) => {
+  const { tabBarLabelPosition } =
+    descriptors[state.routes[state.index].key].options;
+
+  if (tabBarLabelPosition) {
+    switch (tabBarLabelPosition) {
+      case 'beside-icon':
+        return true;
+      case 'below-icon':
+        return false;
+    }
+  }
+
+  if (dimensions.width >= 768) {
+    // Screen size matches a tablet
+    const maxTabWidth = state.routes.reduce((acc, route) => {
+      const { tabBarItemStyle } = descriptors[route.key].options;
+      const flattenedStyle = StyleSheet.flatten(tabBarItemStyle);
+
+      if (flattenedStyle) {
+        if (typeof flattenedStyle.width === 'number') {
+          return acc + flattenedStyle.width;
+        } else if (typeof flattenedStyle.maxWidth === 'number') {
+          return acc + flattenedStyle.maxWidth;
+        }
+      }
+
+      return acc + DEFAULT_MAX_TAB_ITEM_WIDTH;
+    }, 0);
+
+    return maxTabWidth <= dimensions.width;
+  } else {
+    return dimensions.width > dimensions.height;
+  }
+};
+
+const isCompact = ({ state, descriptors, dimensions }: Options): boolean => {
+  const { tabBarPosition, tabBarVariant } =
+    descriptors[state.routes[state.index].key].options;
+
+  if (
+    tabBarPosition === 'left' ||
+    tabBarPosition === 'right' ||
+    tabBarVariant === 'material'
+  ) {
+    return false;
+  }
+
+  const isLandscape = dimensions.width > dimensions.height;
+  const horizontalLabels = shouldUseHorizontalLabels({
+    state,
+    descriptors,
+    dimensions,
+  });
+
+  if (
+    Platform.OS === 'ios' &&
+    !Platform.isPad &&
+    isLandscape &&
+    horizontalLabels
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+export const getTabBarHeight = ({
+  state,
+  descriptors,
+  dimensions,
+  insets,
+  style,
+}: Options & {
+  insets: EdgeInsets;
+  style: Animated.WithAnimatedValue<StyleProp<ViewStyle>> | undefined;
+}) => {
+  const { tabBarPosition } = descriptors[state.routes[state.index].key].options;
+
+  const flattenedStyle = StyleSheet.flatten(style);
+  const customHeight =
+    flattenedStyle && 'height' in flattenedStyle
+      ? flattenedStyle.height
+      : undefined;
+
+  if (typeof customHeight === 'number') {
+    return customHeight;
+  }
+
+  const inset = insets[tabBarPosition === 'top' ? 'top' : 'bottom'];
+
+  if (isCompact({ state, descriptors, dimensions })) {
+    return TABBAR_HEIGHT_UIKIT_COMPACT + inset;
+  }
+
+  return TABBAR_HEIGHT_UIKIT + inset;
+};
+
+const chunkArray = (array: any[], chunkSize: number) => {
+  return array.reduce((result, item, index) => {
+    const chunkIndex = Math.floor(index / chunkSize);
+
+    if (!result[chunkIndex]) {
+      result[chunkIndex] = []; // start a new chunk
+    }
+
+    result[chunkIndex].push(item);
+
+    return result;
+  }, []);
+};
+
+interface ITabRoutesProps {
+  state: TabNavigationState<ParamListBase>;
+  descriptors: BottomTabDescriptorMap;
+  focusedOptions: BottomTabNavigationOptions;
+  layout: { height: number; width: number };
+  navigation: NavigationHelpers<ParamListBase, BottomTabNavigationEventMap>;
+  tabCountPerPage?: number;
+}
+
+const TabRoutes = ({
+  descriptors,
+  focusedOptions,
+  state,
+  navigation,
+  tabCountPerPage,
+}: ITabRoutesProps) => {
+  const dimensions = useSafeAreaFrame();
+  const compact = isCompact({ state, descriptors, dimensions });
+  const hasHorizontalLabels = shouldUseHorizontalLabels({
+    state,
+    descriptors,
+    dimensions,
+  });
+  const { buildHref } = useLinkBuilder();
+
+  const {
+    tabBarPosition = 'bottom',
+    tabBarShowLabel,
+    tabBarVariant = 'uikit',
+    tabBarActiveTintColor,
+    tabBarInactiveTintColor,
+    tabBarActiveBackgroundColor,
+    tabBarInactiveBackgroundColor,
+  } = focusedOptions;
+
+  const sidebar = tabBarPosition === 'left' || tabBarPosition === 'right';
+  const spacing =
+    tabBarVariant === 'material' ? SPACING_MATERIAL : SPACING_UIKIT;
+
+  const { routes } = state;
+
+  return routes.map((route, index) => {
+    const focused = index === state.index;
+    const { options } = descriptors[route.key];
+
+    const onPress = () => {
+      const event = navigation.emit({
+        type: 'tabPress',
+        target: route.key,
+        canPreventDefault: true,
+      });
+
+      if (!focused && !event.defaultPrevented) {
+        navigation.dispatch({
+          ...CommonActions.navigate(route),
+          target: state.key,
+        });
+      }
+    };
+
+    const onLongPress = () => {
+      navigation.emit({
+        type: 'tabLongPress',
+        target: route.key,
+      });
+    };
+
+    const label =
+      typeof options.tabBarLabel === 'function'
+        ? options.tabBarLabel
+        : getLabel(
+            { label: options.tabBarLabel, title: options.title },
+            route.name
+          );
+
+    const accessibilityLabel =
+      options.tabBarAccessibilityLabel !== undefined
+        ? options.tabBarAccessibilityLabel
+        : typeof label === 'string' && Platform.OS === 'ios'
+          ? `${label}, tab, ${index + 1} of ${routes.length}`
+          : undefined;
+
+    return (
+      <NavigationContext.Provider
+        key={route.key}
+        value={descriptors[route.key].navigation}
+      >
+        <NavigationRouteContext.Provider value={route}>
+          <BottomTabItem
+            href={buildHref(route.name, route.params)}
+            route={route}
+            descriptor={descriptors[route.key]}
+            focused={focused}
+            horizontal={hasHorizontalLabels}
+            compact={compact}
+            sidebar={sidebar}
+            variant={tabBarVariant}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            accessibilityLabel={accessibilityLabel}
+            testID={options.tabBarButtonTestID}
+            allowFontScaling={options.tabBarAllowFontScaling}
+            activeTintColor={tabBarActiveTintColor}
+            inactiveTintColor={tabBarInactiveTintColor}
+            activeBackgroundColor={tabBarActiveBackgroundColor}
+            inactiveBackgroundColor={tabBarInactiveBackgroundColor}
+            button={options.tabBarButton}
+            icon={
+              options.tabBarIcon ??
+              (({ color, size }) => <MissingIcon color={color} size={size} />)
+            }
+            badge={options.tabBarBadge}
+            badgeStyle={options.tabBarBadgeStyle}
+            label={label}
+            showLabel={tabBarShowLabel}
+            labelStyle={options.tabBarLabelStyle}
+            iconStyle={options.tabBarIconStyle}
+            tabCountPerPage={tabCountPerPage}
+            style={[
+              sidebar
+                ? {
+                    marginVertical: hasHorizontalLabels
+                      ? tabBarVariant === 'material'
+                        ? 0
+                        : 1
+                      : spacing / 2,
+                  }
+                : styles.bottomItem,
+              options.tabBarItemStyle,
+            ]}
+          />
+        </NavigationRouteContext.Provider>
+      </NavigationContext.Provider>
+    );
+  });
+};
+
+export function BottomTabBar({
+  state,
+  navigation,
+  descriptors,
+  insets,
+  style,
+  scrollableProps,
+}: Props) {
+  const { colors } = useTheme();
+  const { direction } = useLocale();
+
+  const focusedRoute = state.routes[state.index];
+  const focusedDescriptor = descriptors[focusedRoute.key];
+  const focusedOptions = focusedDescriptor.options;
+
+  const {
+    tabBarPosition = 'bottom',
+    tabBarLabelPosition,
+    tabBarHideOnKeyboard = false,
+    tabBarVisibilityAnimationConfig,
+    tabBarVariant = 'uikit',
+    tabBarStyle,
+    tabBarBackground,
+  } = focusedOptions;
+
+  if (
+    tabBarVariant === 'material' &&
+    tabBarPosition !== 'left' &&
+    tabBarPosition !== 'right'
+  ) {
+    throw new Error(
+      "The 'material' variant for tab bar is only supported when 'tabBarPosition' is set to 'left' or 'right'."
+    );
+  }
+
+  if (
+    tabBarLabelPosition === 'below-icon' &&
+    tabBarVariant === 'uikit' &&
+    (tabBarPosition === 'left' || tabBarPosition === 'right')
+  ) {
+    throw new Error(
+      "The 'below-icon' label position for tab bar is only supported when 'tabBarPosition' is set to 'top' or 'bottom' when using the 'uikit' variant."
+    );
+  }
+
+  const dimensions = useSafeAreaFrame();
+  const isKeyboardShown = useIsKeyboardShown();
+
+  const onHeightChange = React.useContext(BottomTabBarHeightCallbackContext);
+
+  const shouldShowTabBar = !(tabBarHideOnKeyboard && isKeyboardShown);
+
+  const visibilityAnimationConfigRef = React.useRef(
+    tabBarVisibilityAnimationConfig
+  );
+
+  React.useEffect(() => {
+    visibilityAnimationConfigRef.current = tabBarVisibilityAnimationConfig;
+  });
+
+  const [isTabBarHidden, setIsTabBarHidden] = React.useState(!shouldShowTabBar);
+  const [selectedPage, setSelectedPage] = React.useState<number>(0);
+  const [visible] = React.useState(
+    () => new Animated.Value(shouldShowTabBar ? 1 : 0)
+  );
+
+  React.useEffect(() => {
+    const visibilityAnimationConfig = visibilityAnimationConfigRef.current;
+
+    if (shouldShowTabBar) {
+      const animation =
+        visibilityAnimationConfig?.show?.animation === 'spring'
+          ? Animated.spring
+          : Animated.timing;
+
+      animation(visible, {
+        toValue: 1,
+        useNativeDriver,
+        duration: 250,
+        ...visibilityAnimationConfig?.show?.config,
+      }).start(({ finished }) => {
+        if (finished) {
+          setIsTabBarHidden(false);
+        }
+      });
+    } else {
+      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
+      setIsTabBarHidden(true);
+
+      const animation =
+        visibilityAnimationConfig?.hide?.animation === 'spring'
+          ? Animated.spring
+          : Animated.timing;
+
+      animation(visible, {
+        toValue: 0,
+        useNativeDriver,
+        duration: 200,
+        ...visibilityAnimationConfig?.hide?.config,
+      }).start();
+    }
+
+    return () => visible.stopAnimation();
+  }, [visible, shouldShowTabBar]);
+
+  const pages = React.useMemo(() => {
+    if (scrollableProps) {
+      return chunkArray(state.routes, scrollableProps?.tabCountPerPage || 4);
+    } else {
+      return [];
+    }
+  }, [scrollableProps, state.routes]);
+
+  const [layout, setLayout] = React.useState({
+    height: 0,
+    width: dimensions.width,
+  });
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const { height, width } = e.nativeEvent.layout;
+
+    onHeightChange?.(height);
+
+    setLayout((layout) => {
+      if (height === layout.height && width === layout.width) {
+        return layout;
+      } else {
+        return {
+          height,
+          width,
+        };
+      }
+    });
+  };
+
+  const tabBarHeight = getTabBarHeight({
+    state,
+    descriptors,
+    insets,
+    dimensions,
+    style: [tabBarStyle, style],
+  });
+
+  const hasHorizontalLabels = shouldUseHorizontalLabels({
+    state,
+    descriptors,
+    dimensions,
+  });
+
+  const sidebar = tabBarPosition === 'left' || tabBarPosition === 'right';
+  const spacing =
+    tabBarVariant === 'material' ? SPACING_MATERIAL : SPACING_UIKIT;
+
+  const tabBarBackgroundElement = tabBarBackground?.();
+
+  return (
+    <Animated.View
+      style={[
+        tabBarPosition === 'left'
+          ? styles.start
+          : tabBarPosition === 'right'
+            ? styles.end
+            : styles.bottom,
+        (
+          Platform.OS === 'web'
+            ? tabBarPosition === 'right'
+            : (direction === 'rtl' && tabBarPosition === 'left') ||
+              (direction !== 'rtl' && tabBarPosition === 'right')
+        )
+          ? { borderLeftWidth: StyleSheet.hairlineWidth }
+          : (
+                Platform.OS === 'web'
+                  ? tabBarPosition === 'left'
+                  : (direction === 'rtl' && tabBarPosition === 'right') ||
+                    (direction !== 'rtl' && tabBarPosition === 'left')
+              )
+            ? { borderRightWidth: StyleSheet.hairlineWidth }
+            : tabBarPosition === 'top'
+              ? { borderBottomWidth: StyleSheet.hairlineWidth }
+              : { borderTopWidth: StyleSheet.hairlineWidth },
+        {
+          backgroundColor:
+            tabBarBackgroundElement != null ? 'transparent' : colors.card,
+          borderColor: colors.border,
+        },
+        sidebar
+          ? {
+              paddingTop:
+                (hasHorizontalLabels ? spacing : spacing / 2) + insets.top,
+              paddingBottom:
+                (hasHorizontalLabels ? spacing : spacing / 2) + insets.bottom,
+              paddingStart:
+                spacing + (tabBarPosition === 'left' ? insets.left : 0),
+              paddingEnd:
+                spacing + (tabBarPosition === 'right' ? insets.right : 0),
+              minWidth: hasHorizontalLabels
+                ? getDefaultSidebarWidth(dimensions)
+                : 0,
+            }
+          : [
+              {
+                transform: [
+                  {
+                    translateY: visible.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [
+                        layout.height +
+                          insets[tabBarPosition === 'top' ? 'top' : 'bottom'] +
+                          StyleSheet.hairlineWidth,
+                        0,
+                      ],
+                    }),
+                  },
+                ],
+                // Absolutely position the tab bar so that the content is below it
+                // This is needed to avoid gap at bottom when the tab bar is hidden
+                position: isTabBarHidden ? 'absolute' : undefined,
+              },
+              {
+                height: tabBarHeight,
+                paddingBottom: tabBarPosition === 'bottom' ? insets.bottom : 0,
+                paddingTop: tabBarPosition === 'top' ? insets.top : 0,
+                paddingHorizontal: Math.max(insets.left, insets.right),
+              },
+            ],
+        tabBarStyle,
+      ]}
+      pointerEvents={isTabBarHidden ? 'none' : 'auto'}
+      onLayout={sidebar ? undefined : handleLayout}
+    >
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {tabBarBackgroundElement}
+      </View>
+      {scrollableProps ? (
+        <View style={scrollViewStyles.content}>
+          {(scrollableProps?.pagingIcons?.right &&
+            selectedPage <= 1 &&
+            pages?.[selectedPage + 1] && (
+              <View style={scrollViewStyles.rightIcon}>
+                {scrollableProps?.pagingIcons?.right}
+              </View>
+            )) ||
+            null}
+
+          {(scrollableProps?.pagingIcons?.left && selectedPage >= 1 && (
+            <View style={scrollViewStyles.leftIcon}>
+              {scrollableProps?.pagingIcons?.left}
+            </View>
+          )) ||
+            null}
+          <ScrollView
+            accessibilityRole="tablist"
+            horizontal
+            {...(scrollableProps?.pagingIcons
+              ? {
+                  onMomentumScrollEnd: ({ nativeEvent }) => {
+                    const index = Math.round(
+                      nativeEvent.contentOffset.x / layout.width
+                    );
+
+                    if (index !== selectedPage) {
+                      setSelectedPage(index);
+                    }
+                  },
+                }
+              : undefined)}
+            {...(scrollableProps?.scrollViewProps || {
+              pagingEnabled: true,
+              showsHorizontalScrollIndicator: false,
+              disableIntervalMomentum: true,
+              snapToInterval: layout.width,
+            })}
+          >
+            <TabRoutes
+              state={state}
+              descriptors={descriptors}
+              focusedOptions={focusedOptions}
+              layout={layout}
+              navigation={navigation}
+              tabCountPerPage={scrollableProps?.tabCountPerPage || 4}
+            />
+          </ScrollView>
+        </View>
+      ) : (
+        <View
+          role="tablist"
+          style={sidebar ? styles.sideContent : styles.bottomContent}
+        >
+          <TabRoutes
+            descriptors={descriptors}
+            focusedOptions={focusedOptions}
+            layout={layout}
+            navigation={navigation}
+            state={state}
+          />
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  start: {
+    top: 0,
+    bottom: 0,
+    start: 0,
+  },
+  end: {
+    top: 0,
+    bottom: 0,
+    end: 0,
+  },
+  bottom: {
+    start: 0,
+    end: 0,
+    bottom: 0,
+    elevation: 8,
+  },
+  bottomContent: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  sideContent: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  bottomItem: {
+    flex: 1,
+  },
+});
+
+const scrollViewStyles = StyleSheet.create({
+  tabBar: {
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 8,
+  },
+  content: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  leftIcon: {
+    position: 'absolute',
+    zIndex: 9999,
+    left: 0,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  rightIcon: {
+    position: 'absolute',
+    zIndex: 9999,
+    right: 0,
+    justifyContent: 'center',
+    height: '100%',
+  },
+});
