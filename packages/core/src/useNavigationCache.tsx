@@ -133,6 +133,13 @@ export default function useNavigationCache<
         // FIXME: too much work to fix the types for now
         ...(emitter.create(route.key) as any),
         dispatch: (thunk: Thunk) => withStack(() => dispatch(thunk)),
+        getParent: (id?: string) => {
+          if (id !== undefined && id === rest.getId()) {
+            return acc[route.key];
+          }
+
+          return rest.getParent(id);
+        },
         setOptions: (options: object) =>
           setOptions((o) => ({
             ...o,

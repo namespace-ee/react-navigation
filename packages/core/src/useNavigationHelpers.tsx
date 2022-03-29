@@ -17,6 +17,7 @@ import type { NavigationEventEmitter } from './useEventEmitter';
 PrivateValueStore;
 
 type Options<State extends NavigationState, Action extends NavigationAction> = {
+  id: string | undefined;
   onAction: (action: NavigationAction) => boolean;
   getState: () => State;
   emitter: NavigationEventEmitter<any>;
@@ -32,7 +33,13 @@ export default function useNavigationHelpers<
   ActionHelpers extends Record<string, () => void>,
   Action extends NavigationAction,
   EventMap extends Record<string, any>
->({ onAction, getState, emitter, router }: Options<State, Action>) {
+>({
+  id: navigatorId,
+  onAction,
+  getState,
+  emitter,
+  router,
+}: Options<State, Action>) {
   const onUnhandledAction = React.useContext(UnhandledActionContext);
   const parentNavigationHelpers = React.useContext(NavigationContext);
 
@@ -61,7 +68,7 @@ export default function useNavigationHelpers<
       {}
     );
 
-    return {
+    const navigationHelpers = {
       ...parentNavigationHelpers,
       ...helpers,
       dispatch,
@@ -82,12 +89,34 @@ export default function useNavigationHelpers<
           false
         );
       },
-      getParent: () => parentNavigationHelpers as any,
+      getId: () => navigatorId,
+      getParent: (id?: string) => {
+        if (id !== undefined) {
+          let current = parentNavigationHelpers;
+
+          while (current && id !== current.getId()) {
+            current = current.getParent();
+          }
+
+          if (current == null) {
+            throw new Error(
+              `Couldn't find a parent navigator with the ID "${id}". Is this navigator nested under another navigator with this ID?`
+            );
+          }
+
+          return current;
+        }
+
+        return parentNavigationHelpers;
+      },
       getState,
     } as NavigationHelpers<ParamListBase, EventMap> &
       (NavigationProp<ParamListBase, string, any, any, any> | undefined) &
       ActionHelpers;
+
+    return navigationHelpers;
   }, [
+    navigatorId,
     emitter.emit,
     getState,
     onAction,

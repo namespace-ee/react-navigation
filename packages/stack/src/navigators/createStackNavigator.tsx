@@ -31,6 +31,7 @@ type Props = DefaultNavigatorOptions<
   StackNavigationConfig;
 
 function StackNavigator({
+  id,
   initialRouteName,
   children,
   screenListeners,
@@ -81,6 +82,7 @@ function StackNavigator({
       StackNavigationOptions,
       StackNavigationEventMap
     >(StackRouter, {
+      id,
       initialRouteName,
       children,
       screenListeners,

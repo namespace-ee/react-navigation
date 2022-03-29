@@ -19,6 +19,7 @@ import type {
 import NativeStackView from '../views/NativeStackView';
 
 function NativeStackNavigator({
+  id,
   initialRouteName,
   children,
   screenListeners,
@@ -33,6 +34,7 @@ function NativeStackNavigator({
       NativeStackNavigationOptions,
       NativeStackNavigationEventMap
     >(StackRouter, {
+      id,
       initialRouteName,
       children,
       screenListeners,

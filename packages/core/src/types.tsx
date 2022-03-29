@@ -26,6 +26,10 @@ export type DefaultNavigatorOptions<
   EventMap extends EventMapBase
 > = DefaultRouterOptions<Keyof<ParamList>> & {
   /**
+   * Optional ID for the navigator. Can be used with `navigation.getParent(id)` to refer to a parent.
+   */
+  id?: string;
+  /**
    * Children React Elements to extract the route configuration from.
    * Only `Screen`, `Group` and `React.Fragment` are supported as children.
    */
@@ -236,9 +240,19 @@ type NavigationHelpersCommon<
   canGoBack(): boolean;
 
   /**
-   * Returns the navigation prop from the parent navigator,
+   * Returns the name of the navigator specified in the `name` prop.
+   * If no name is specified, returns `undefined`.
    */
-  getParent<T = NavigationProp<ParamListBase> | undefined>(): T;
+  getId(): string | undefined;
+
+  /**
+   * Returns the navigation helpers from a parent navigator based on the ID.
+   * If an ID is provided, the navigation helper from the parent navigator with matching ID (including current) will be returned.
+   * If no ID is provided, the navigation helper from the immediate parent navigator will be returned.
+   *
+   * @param id Optional ID of a parent navigator.
+   */
+  getParent<T = NavigationHelpers<ParamListBase> | undefined>(id?: string): T;
 
   /**
    * Returns the navigator's state.
@@ -295,6 +309,15 @@ export type NavigationProp<
   ScreenOptions extends {} = {},
   EventMap extends EventMapBase = {}
 > = NavigationHelpersCommon<ParamList, State> & {
+  /**
+   * Returns the navigation prop from a parent navigator based on the ID.
+   * If an ID is provided, the navigation prop from the parent navigator with matching ID (including current) will be returned.
+   * If no ID is provided, the navigation prop from the immediate parent navigator will be returned.
+   *
+   * @param id Optional ID of a parent navigator.
+   */
+  getParent<T = NavigationProp<ParamListBase> | undefined>(id?: string): T;
+
   /**
    * Update the param object for the route.
    * The new params will be shallow merged with the old one.
