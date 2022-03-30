@@ -92,6 +92,7 @@ function StackNavigator({
 
   React.useEffect(
     () =>
+      // @ts-expect-error: there may not be a tab navigator in parent
       navigation.addListener?.('tabPress', (e) => {
         const isFocused = navigation.isFocused();
 
@@ -101,7 +102,7 @@ function StackNavigator({
           if (
             state.index > 0 &&
             isFocused &&
-            !(e as EventArg<'tabPress', true>).defaultPrevented
+            !(e as unknown as EventArg<'tabPress', true>).defaultPrevented
           ) {
             // When user taps on already focused tab and we're inside the tab,
             // reset the stack to replicate native behaviour

@@ -173,6 +173,7 @@ export class PrivateValueStore<A, B, C> {
 
 type NavigationHelpersCommon<
   ParamList extends ParamListBase,
+  NavigatorID extends string | undefined = string | undefined,
   State extends NavigationState = NavigationState
 > = {
   /**
@@ -243,7 +244,7 @@ type NavigationHelpersCommon<
    * Returns the name of the navigator specified in the `name` prop.
    * If no name is specified, returns `undefined`.
    */
-  getId(): string | undefined;
+  getId(): NavigatorID;
 
   /**
    * Returns the navigation helpers from a parent navigator based on the ID.
@@ -263,8 +264,9 @@ type NavigationHelpersCommon<
 
 export type NavigationHelpers<
   ParamList extends ParamListBase,
-  EventMap extends EventMapBase = {}
-> = NavigationHelpersCommon<ParamList> &
+  EventMap extends EventMapBase = {},
+  NavigatorID extends string | undefined = string | undefined
+> = NavigationHelpersCommon<ParamList, NavigatorID> &
   EventEmitter<EventMap> & {
     /**
      * Update the param object for the route.
@@ -305,10 +307,11 @@ export type NavigationContainerProps = {
 export type NavigationProp<
   ParamList extends {},
   RouteName extends keyof ParamList = Keyof<ParamList>,
+  NavigatorID extends string | undefined = string | undefined,
   State extends NavigationState = NavigationState<ParamList>,
   ScreenOptions extends {} = {},
   EventMap extends EventMapBase = {}
-> = NavigationHelpersCommon<ParamList, State> & {
+> = NavigationHelpersCommon<ParamList, NavigatorID, State> & {
   /**
    * Returns the navigation prop from a parent navigator based on the ID.
    * If an ID is provided, the navigation prop from the parent navigator with matching ID (including current) will be returned.
@@ -316,7 +319,9 @@ export type NavigationProp<
    *
    * @param id Optional ID of a parent navigator.
    */
-  getParent<T = NavigationProp<ParamListBase> | undefined>(id?: string): T;
+  getParent<T = NavigationProp<ParamListBase> | undefined>(
+    id?: NavigatorID | Omit<string, Extract<NavigatorID, string>>
+  ): T;
 
   /**
    * Update the param object for the route.
@@ -342,8 +347,8 @@ export type RouteProp<
 > = Route<Extract<RouteName, string>, ParamList[RouteName]>;
 
 export type CompositeNavigationProp<
-  A extends NavigationProp<ParamListBase, string, any, any>,
-  B extends NavigationHelpersCommon<ParamListBase, any>
+  A extends NavigationProp<ParamListBase, string, string | undefined, any, any>,
+  B extends NavigationHelpersCommon<ParamListBase, any, any>
 > = Omit<A & B, keyof NavigationProp<any>> &
   NavigationProp<
     /**
@@ -358,29 +363,41 @@ export type CompositeNavigationProp<
      */
     A extends NavigationProp<any, infer R> ? R : string,
     /**
+     * ID from both navigation objects needs to be combined for `getParent`
+     */
+    | (A extends NavigationHelpersCommon<any, any, infer I> ? I : never)
+    | (B extends NavigationHelpersCommon<any, any, infer J> ? J : never),
+    /**
      * The type of state should refer to the state specified in the first type
      */
-    A extends NavigationProp<any, any, infer S> ? S : NavigationState,
+    A extends NavigationProp<any, any, any, infer S> ? S : NavigationState,
     /**
      * Screen options from both navigation objects needs to be combined
      * This allows typechecking `setOptions`
      */
-    (A extends NavigationProp<any, any, any, infer O> ? O : {}) &
-      (B extends NavigationProp<any, any, any, infer P> ? P : {}),
+    (A extends NavigationProp<any, any, any, any, infer O> ? O : {}) &
+      (B extends NavigationProp<any, any, any, any, infer P> ? P : {}),
     /**
      * Event consumer config should refer to the config specified in the first type
      * This allows typechecking `addListener`/`removeListener`
      */
-    A extends NavigationProp<any, any, any, any, infer E> ? E : {}
+    A extends NavigationProp<any, any, any, any, any, infer E> ? E : {}
   >;
 
 export type CompositeScreenProps<
   A extends {
-    navigation: NavigationProp<ParamListBase, string, any, any>;
+    navigation: NavigationProp<
+      ParamListBase,
+      string,
+      string | undefined,
+      any,
+      any,
+      any
+    >;
     route: RouteProp<ParamListBase>;
   },
   B extends {
-    navigation: NavigationHelpersCommon<ParamListBase, any>;
+    navigation: NavigationHelpersCommon<ParamListBase, string | undefined, any>;
   }
 > = {
   navigation: CompositeNavigationProp<A['navigation'], B['navigation']>;
@@ -389,7 +406,7 @@ export type CompositeScreenProps<
 
 export type Descriptor<
   ScreenOptions extends {},
-  Navigation extends NavigationProp<any, any, any, any, any>,
+  Navigation extends NavigationProp<any, any, any, any, any, any>,
   Route extends RouteProp<any, any>
 > = {
   /**

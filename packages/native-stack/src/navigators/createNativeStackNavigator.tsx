@@ -43,6 +43,7 @@ function NativeStackNavigator({
 
   React.useEffect(
     () =>
+      // @ts-expect-error: there may not be a tab navigator in parent
       navigation?.addListener?.('tabPress', (e: any) => {
         const isFocused = navigation.isFocused();
 

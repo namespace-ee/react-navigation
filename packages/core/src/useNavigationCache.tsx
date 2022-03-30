@@ -32,7 +32,14 @@ type NavigationCache<
   EventMap extends Record<string, any>
 > = Record<
   string,
-  NavigationProp<ParamListBase, string, State, ScreenOptions, EventMap>
+  NavigationProp<
+    ParamListBase,
+    string,
+    string | undefined,
+    State,
+    ScreenOptions,
+    EventMap
+  >
 >;
 
 /**
