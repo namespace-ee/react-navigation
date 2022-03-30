@@ -2,6 +2,7 @@ import { MissingIcon } from '@react-navigation/elements';
 import {
   CommonActions,
   NavigationContext,
+  NavigationHelpers,
   NavigationRouteContext,
   ParamListBase,
   TabNavigationState,
@@ -13,6 +14,7 @@ import {
   Animated,
   LayoutChangeEvent,
   Platform,
+  ScrollView,
   StyleProp,
   StyleSheet,
   View,
@@ -20,7 +22,12 @@ import {
 } from 'react-native';
 import { EdgeInsets, useSafeAreaFrame } from 'react-native-safe-area-context';
 
-import type { BottomTabBarProps, BottomTabDescriptorMap } from '../types';
+import type {
+  BottomTabBarProps,
+  BottomTabDescriptorMap,
+  BottomTabNavigationEventMap,
+  BottomTabNavigationOptions,
+} from '../types';
 import BottomTabBarHeightCallbackContext from '../utils/BottomTabBarHeightCallbackContext';
 import useIsKeyboardShown from '../utils/useIsKeyboardShown';
 import BottomTabItem from './BottomTabItem';
@@ -131,24 +138,20 @@ export default function BottomTabBar({
   descriptors,
   insets,
   style,
+  scrollEnabled,
+  scrollViewProps,
 }: Props) {
   const { colors } = useTheme();
-  const buildLink = useLinkBuilder();
 
   const focusedRoute = state.routes[state.index];
   const focusedDescriptor = descriptors[focusedRoute.key];
   const focusedOptions = focusedDescriptor.options;
 
   const {
-    tabBarShowLabel,
     tabBarHideOnKeyboard = false,
     tabBarVisibilityAnimationConfig,
     tabBarStyle,
     tabBarBackground,
-    tabBarActiveTintColor,
-    tabBarInactiveTintColor,
-    tabBarActiveBackgroundColor,
-    tabBarInactiveBackgroundColor,
   } = focusedOptions;
 
   const dimensions = useSafeAreaFrame();
@@ -232,8 +235,6 @@ export default function BottomTabBar({
     });
   };
 
-  const { routes } = state;
-
   const paddingBottom = getPaddingBottom(insets);
   const tabBarHeight = getTabBarHeight({
     state,
@@ -244,14 +245,9 @@ export default function BottomTabBar({
     style: [tabBarStyle, style],
   });
 
-  const hasHorizontalLabels = shouldUseHorizontalLabels({
-    state,
-    descriptors,
-    dimensions,
-    layout,
-  });
-
   const tabBarBackgroundElement = tabBarBackground?.();
+
+  // console.log(tab)
 
   return (
     <Animated.View
@@ -291,90 +287,155 @@ export default function BottomTabBar({
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         {tabBarBackgroundElement}
       </View>
-      <View accessibilityRole="tablist" style={styles.content}>
-        {routes.map((route, index) => {
-          const focused = index === state.index;
-          const { options } = descriptors[route.key];
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!focused && !event.defaultPrevented) {
-              navigation.dispatch({
-                ...CommonActions.navigate({ name: route.name, merge: true }),
-                target: state.key,
-              });
-            }
-          };
-
-          const onLongPress = () => {
-            navigation.emit({
-              type: 'tabLongPress',
-              target: route.key,
-            });
-          };
-
-          const label =
-            options.tabBarLabel !== undefined
-              ? options.tabBarLabel
-              : options.title !== undefined
-              ? options.title
-              : route.name;
-
-          const accessibilityLabel =
-            options.tabBarAccessibilityLabel !== undefined
-              ? options.tabBarAccessibilityLabel
-              : typeof label === 'string' && Platform.OS === 'ios'
-              ? `${label}, tab, ${index + 1} of ${routes.length}`
-              : undefined;
-
-          return (
-            <NavigationContext.Provider
-              key={route.key}
-              value={descriptors[route.key].navigation}
-            >
-              <NavigationRouteContext.Provider value={route}>
-                <BottomTabItem
-                  route={route}
-                  focused={focused}
-                  horizontal={hasHorizontalLabels}
-                  onPress={onPress}
-                  onLongPress={onLongPress}
-                  accessibilityLabel={accessibilityLabel}
-                  to={buildLink(route.name, route.params)}
-                  testID={options.tabBarTestID}
-                  allowFontScaling={options.tabBarAllowFontScaling}
-                  activeTintColor={tabBarActiveTintColor}
-                  inactiveTintColor={tabBarInactiveTintColor}
-                  activeBackgroundColor={tabBarActiveBackgroundColor}
-                  inactiveBackgroundColor={tabBarInactiveBackgroundColor}
-                  button={options.tabBarButton}
-                  icon={
-                    options.tabBarIcon ??
-                    (({ color, size }) => (
-                      <MissingIcon color={color} size={size} />
-                    ))
-                  }
-                  badge={options.tabBarBadge}
-                  badgeStyle={options.tabBarBadgeStyle}
-                  label={label}
-                  showLabel={tabBarShowLabel}
-                  labelStyle={options.tabBarLabelStyle}
-                  iconStyle={options.tabBarIconStyle}
-                  style={options.tabBarItemStyle}
-                />
-              </NavigationRouteContext.Provider>
-            </NavigationContext.Provider>
-          );
-        })}
-      </View>
+      {scrollEnabled ? (
+        <ScrollView
+          accessibilityRole="tablist"
+          // contentContainerStyle={styles.content}
+          horizontal
+          {...(scrollViewProps || {})}
+        >
+          <TabRoutes
+            state={state}
+            descriptors={descriptors}
+            focusedOptions={focusedOptions}
+            layout={layout}
+            navigation={navigation}
+          />
+        </ScrollView>
+      ) : (
+        <View style={styles.content}>
+          <TabRoutes
+            state={state}
+            descriptors={descriptors}
+            focusedOptions={focusedOptions}
+            layout={layout}
+            navigation={navigation}
+          />
+        </View>
+      )}
     </Animated.View>
   );
 }
+
+interface ITabRoutesProps {
+  state: TabNavigationState<ParamListBase>;
+  descriptors: BottomTabDescriptorMap;
+  focusedOptions: BottomTabNavigationOptions;
+  layout: { height: number; width: number };
+  navigation: NavigationHelpers<ParamListBase, BottomTabNavigationEventMap>;
+}
+
+const TabRoutes = ({
+  state,
+  descriptors,
+  focusedOptions,
+  layout,
+  navigation,
+}: ITabRoutesProps): JSX.Element => {
+  const dimensions = useSafeAreaFrame();
+  const buildLink = useLinkBuilder();
+
+  const { routes } = state;
+
+  const {
+    tabBarShowLabel,
+    tabBarActiveTintColor,
+    tabBarInactiveTintColor,
+    tabBarActiveBackgroundColor,
+    tabBarInactiveBackgroundColor,
+  } = focusedOptions;
+
+  const hasHorizontalLabels = shouldUseHorizontalLabels({
+    state,
+    descriptors,
+    dimensions,
+    layout,
+  });
+
+  return (
+    <>
+      {routes.map((route, index) => {
+        const focused = index === state.index;
+        const { options } = descriptors[route.key];
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!focused && !event.defaultPrevented) {
+            navigation.dispatch({
+              ...CommonActions.navigate({ name: route.name, merge: true }),
+              target: state.key,
+            });
+          }
+        };
+
+        const onLongPress = () => {
+          navigation.emit({
+            type: 'tabLongPress',
+            target: route.key,
+          });
+        };
+
+        const label =
+          options.tabBarLabel !== undefined
+            ? options.tabBarLabel
+            : options.title !== undefined
+            ? options.title
+            : route.name;
+
+        const accessibilityLabel =
+          options.tabBarAccessibilityLabel !== undefined
+            ? options.tabBarAccessibilityLabel
+            : typeof label === 'string' && Platform.OS === 'ios'
+            ? `${label}, tab, ${index + 1} of ${routes.length}`
+            : undefined;
+
+        return (
+          <NavigationContext.Provider
+            key={route.key}
+            value={descriptors[route.key].navigation}
+          >
+            <NavigationRouteContext.Provider value={route}>
+              <BottomTabItem
+                route={route}
+                focused={focused}
+                horizontal={hasHorizontalLabels}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                accessibilityLabel={accessibilityLabel}
+                to={buildLink(route.name, route.params)}
+                testID={options.tabBarTestID}
+                allowFontScaling={options.tabBarAllowFontScaling}
+                activeTintColor={tabBarActiveTintColor}
+                inactiveTintColor={tabBarInactiveTintColor}
+                activeBackgroundColor={tabBarActiveBackgroundColor}
+                inactiveBackgroundColor={tabBarInactiveBackgroundColor}
+                button={options.tabBarButton}
+                icon={
+                  options.tabBarIcon ??
+                  (({ color, size }) => (
+                    <MissingIcon color={color} size={size} />
+                  ))
+                }
+                badge={options.tabBarBadge}
+                badgeStyle={options.tabBarBadgeStyle}
+                label={label}
+                showLabel={tabBarShowLabel}
+                labelStyle={options.tabBarLabelStyle}
+                iconStyle={options.tabBarIconStyle}
+                style={options.tabBarItemStyle}
+              />
+            </NavigationRouteContext.Provider>
+          </NavigationContext.Provider>
+        );
+      })}
+    </>
+  );
+};
 
 const styles = StyleSheet.create({
   tabBar: {

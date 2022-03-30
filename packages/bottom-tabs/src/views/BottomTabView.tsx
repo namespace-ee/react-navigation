@@ -9,7 +9,7 @@ import type {
   TabNavigationState,
 } from '@react-navigation/native';
 import * as React from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, ScrollViewProps, StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import type {
@@ -29,6 +29,8 @@ type Props = BottomTabNavigationConfig & {
   state: TabNavigationState<ParamListBase>;
   navigation: BottomTabNavigationHelpers;
   descriptors: BottomTabDescriptorMap;
+  scrollEnabled?: boolean;
+  scrollViewProps?: ScrollViewProps;
 };
 
 export default function BottomTabView(props: Props) {
@@ -42,6 +44,8 @@ export default function BottomTabView(props: Props) {
       Platform.OS === 'android' ||
       Platform.OS === 'ios',
     sceneContainerStyle,
+    scrollEnabled,
+    scrollViewProps,
   } = props;
 
   const focusedRouteKey = state.routes[state.index].key;
@@ -71,6 +75,8 @@ export default function BottomTabView(props: Props) {
       <SafeAreaInsetsContext.Consumer>
         {(insets) =>
           tabBar({
+            scrollEnabled,
+            scrollViewProps,
             state: state,
             descriptors: descriptors,
             navigation: navigation,

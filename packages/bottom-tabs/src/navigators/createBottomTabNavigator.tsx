@@ -86,6 +86,8 @@ function BottomTabNavigator({
     );
   }
 
+  const typedScreenOptions = screenOptions as BottomTabNavigationOptions;
+
   if (typeof lazy === 'boolean') {
     defaultScreenOptions.lazy = lazy;
 
@@ -119,6 +121,8 @@ function BottomTabNavigator({
         navigation={navigation}
         descriptors={descriptors}
         sceneContainerStyle={sceneContainerStyle}
+        scrollEnabled={!!typedScreenOptions?.scrollEnabled}
+        scrollViewProps={typedScreenOptions?.scrollViewProps}
       />
     </NavigationContent>
   );

@@ -12,6 +12,7 @@ import type * as React from 'react';
 import type {
   Animated,
   GestureResponderEvent,
+  ScrollViewProps,
   StyleProp,
   TextStyle,
   TouchableWithoutFeedbackProps,
@@ -241,6 +242,13 @@ export type BottomTabNavigationOptions = HeaderOptions & {
    * Defaults to `false`.
    */
   unmountOnBlur?: boolean;
+
+  /**
+   * Hanldes all bottom tab scrolling logic
+   */
+
+  scrollEnabled?: boolean;
+  scrollViewProps?: ScrollViewProps;
 };
 
 export type BottomTabDescriptor = Descriptor<
@@ -276,6 +284,13 @@ export type BottomTabNavigationConfig = {
    * Style object for the component wrapping the screen content.
    */
   sceneContainerStyle?: StyleProp<ViewStyle>;
+
+  /**
+   * Hanldes all bottom tab scrolling logic
+   */
+
+  scrollEnabled?: boolean;
+  scrollViewProps?: ScrollViewProps;
 };
 
 export type BottomTabHeaderProps = {
@@ -302,6 +317,8 @@ export type BottomTabBarProps = {
   descriptors: BottomTabDescriptorMap;
   navigation: NavigationHelpers<ParamListBase, BottomTabNavigationEventMap>;
   insets: EdgeInsets;
+  scrollEnabled?: boolean;
+  scrollViewProps?: ScrollViewProps;
 };
 
 export type BottomTabBarButtonProps = Omit<
