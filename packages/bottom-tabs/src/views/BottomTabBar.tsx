@@ -42,6 +42,20 @@ const DEFAULT_MAX_TAB_ITEM_WIDTH = 125;
 
 const useNativeDriver = Platform.OS !== 'web';
 
+const chunkArray = (array: any[], chunkSize: number) => {
+  return array.reduce((result, item, index) => {
+    const chunkIndex = Math.floor(index / chunkSize);
+
+    if (!result[chunkIndex]) {
+      result[chunkIndex] = []; // start a new chunk
+    }
+
+    result[chunkIndex].push(item);
+
+    return result;
+  }, []);
+};
+
 type Options = {
   state: TabNavigationState<ParamListBase>;
   descriptors: BottomTabDescriptorMap;
@@ -140,6 +154,8 @@ export default function BottomTabBar({
   style,
   scrollEnabled,
   scrollViewProps,
+  pagingIcons,
+  itemCountByPage = 4,
 }: Props) {
   const { colors } = useTheme();
 
@@ -169,8 +185,16 @@ export default function BottomTabBar({
     visibilityAnimationConfigRef.current = tabBarVisibilityAnimationConfig;
   });
 
-  const [isTabBarHidden, setIsTabBarHidden] = React.useState(!shouldShowTabBar);
+  const pages = React.useMemo(() => {
+    if (scrollEnabled) {
+      return chunkArray(state.routes, itemCountByPage);
+    } else {
+      return [];
+    }
+  }, [itemCountByPage, scrollEnabled, state.routes]);
 
+  const [isTabBarHidden, setIsTabBarHidden] = React.useState(!shouldShowTabBar);
+  const [selectedPage, setSelectedPage] = React.useState<number>(0);
   const [visible] = React.useState(
     () => new Animated.Value(shouldShowTabBar ? 1 : 0)
   );
@@ -247,8 +271,6 @@ export default function BottomTabBar({
 
   const tabBarBackgroundElement = tabBarBackground?.();
 
-  // console.log(tab)
-
   return (
     <Animated.View
       style={[
@@ -288,20 +310,44 @@ export default function BottomTabBar({
         {tabBarBackgroundElement}
       </View>
       {scrollEnabled ? (
-        <ScrollView
-          accessibilityRole="tablist"
-          // contentContainerStyle={styles.content}
-          horizontal
-          {...(scrollViewProps || {})}
-        >
-          <TabRoutes
-            state={state}
-            descriptors={descriptors}
-            focusedOptions={focusedOptions}
-            layout={layout}
-            navigation={navigation}
-          />
-        </ScrollView>
+        <View style={styles.content}>
+          {(selectedPage <= 1 && pages?.[selectedPage + 1] && (
+            <View style={styles.rightIcon}>{pagingIcons?.right}</View>
+          )) ||
+            null}
+
+          {(selectedPage >= 1 && (
+            <View style={styles.leftIcon}>{pagingIcons?.left}</View>
+          )) ||
+            null}
+
+          <ScrollView
+            accessibilityRole="tablist"
+            horizontal
+            {...(pagingIcons
+              ? {
+                  onMomentumScrollEnd: ({ nativeEvent }) => {
+                    const index = Math.round(
+                      nativeEvent.contentOffset.x / layout.width
+                    );
+
+                    if (index !== selectedPage) {
+                      setSelectedPage(index);
+                    }
+                  },
+                }
+              : undefined)}
+            {...(scrollViewProps || {})}
+          >
+            <TabRoutes
+              state={state}
+              descriptors={descriptors}
+              focusedOptions={focusedOptions}
+              layout={layout}
+              navigation={navigation}
+            />
+          </ScrollView>
+        </View>
       ) : (
         <View style={styles.content}>
           <TabRoutes
@@ -448,5 +494,19 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     flexDirection: 'row',
+  },
+  leftIcon: {
+    position: 'absolute',
+    zIndex: 9999,
+    left: 0,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  rightIcon: {
+    position: 'absolute',
+    zIndex: 9999,
+    right: 0,
+    justifyContent: 'center',
+    height: '100%',
   },
 });

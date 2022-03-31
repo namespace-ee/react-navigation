@@ -81,6 +81,11 @@ export type TabBarVisibilityAnimationConfig =
   | TimingKeyboardAnimationConfig
   | SpringKeyboardAnimationConfig;
 
+export interface ScrollViewPagingIcons {
+  left?: JSX.Element;
+  right?: JSX.Element;
+}
+
 export type BottomTabNavigationOptions = HeaderOptions & {
   /**
    * Title text for the screen.
@@ -246,9 +251,18 @@ export type BottomTabNavigationOptions = HeaderOptions & {
   /**
    * Hanldes all bottom tab scrolling logic
    */
-
   scrollEnabled?: boolean;
   scrollViewProps?: ScrollViewProps;
+
+  /**
+   * Option to add icons for scroll view paging
+   */
+  pagingIcons?: ScrollViewPagingIcons;
+
+  /**
+   * Count of tab items per page, when scroll is enabled
+   */
+  itemCountByPage?: number;
 };
 
 export type BottomTabDescriptor = Descriptor<
@@ -319,6 +333,8 @@ export type BottomTabBarProps = {
   insets: EdgeInsets;
   scrollEnabled?: boolean;
   scrollViewProps?: ScrollViewProps;
+  pagingIcons?: ScrollViewPagingIcons;
+  itemCountByPage?: number;
 };
 
 export type BottomTabBarButtonProps = Omit<

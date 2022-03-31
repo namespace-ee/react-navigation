@@ -19,6 +19,7 @@ import type {
   BottomTabNavigationConfig,
   BottomTabNavigationHelpers,
   BottomTabNavigationProp,
+  ScrollViewPagingIcons,
 } from '../types';
 import BottomTabBarHeightCallbackContext from '../utils/BottomTabBarHeightCallbackContext';
 import BottomTabBarHeightContext from '../utils/BottomTabBarHeightContext';
@@ -31,6 +32,7 @@ type Props = BottomTabNavigationConfig & {
   descriptors: BottomTabDescriptorMap;
   scrollEnabled?: boolean;
   scrollViewProps?: ScrollViewProps;
+  pagingIcons?: ScrollViewPagingIcons;
 };
 
 export default function BottomTabView(props: Props) {
@@ -46,6 +48,7 @@ export default function BottomTabView(props: Props) {
     sceneContainerStyle,
     scrollEnabled,
     scrollViewProps,
+    pagingIcons,
   } = props;
 
   const focusedRouteKey = state.routes[state.index].key;
@@ -77,6 +80,7 @@ export default function BottomTabView(props: Props) {
           tabBar({
             scrollEnabled,
             scrollViewProps,
+            pagingIcons,
             state: state,
             descriptors: descriptors,
             navigation: navigation,

@@ -9,6 +9,7 @@ import {
   useNavigationBuilder,
 } from '@react-navigation/native';
 import * as React from 'react';
+import { useWindowDimensions } from 'react-native';
 import warnOnce from 'warn-once';
 
 import type {
@@ -36,6 +37,8 @@ function BottomTabNavigator({
   sceneContainerStyle,
   ...restWithDeprecated
 }: Props) {
+  const { width } = useWindowDimensions();
+
   const {
     // @ts-expect-error: lazy is deprecated
     lazy,
@@ -88,6 +91,20 @@ function BottomTabNavigator({
 
   const typedScreenOptions = screenOptions as BottomTabNavigationOptions;
 
+  if (typedScreenOptions?.itemCountByPage !== undefined) {
+    if (screenOptions?.tabBarItemStyle === undefined) {
+      screenOptions.tabBarItemStyle = {};
+    }
+
+    screenOptions.tabBarItemStyle = {
+      ...(screenOptions?.tabBarItemStyle || {}),
+    };
+    screenOptions.tabBarItemStyle = {
+      ...screenOptions.tabBarItemStyle,
+      width: width / typedScreenOptions.itemCountByPage,
+    };
+  }
+
   if (typeof lazy === 'boolean') {
     defaultScreenOptions.lazy = lazy;
 
@@ -123,6 +140,7 @@ function BottomTabNavigator({
         sceneContainerStyle={sceneContainerStyle}
         scrollEnabled={!!typedScreenOptions?.scrollEnabled}
         scrollViewProps={typedScreenOptions?.scrollViewProps}
+        pagingIcons={typedScreenOptions?.pagingIcons}
       />
     </NavigationContent>
   );

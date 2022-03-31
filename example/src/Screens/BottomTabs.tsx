@@ -12,7 +12,7 @@ import {
 import type { StackScreenProps } from '@react-navigation/stack';
 import { BlurView } from 'expo-blur';
 import * as React from 'react';
-import { ScrollView, StatusBar, StyleSheet } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import Albums from '../Shared/Albums';
@@ -70,6 +70,20 @@ export default function BottomTabsScreen({
   return (
     <BottomTabs.Navigator
       screenOptions={{
+        scrollEnabled: true,
+        scrollViewProps: {
+          horizontal: true,
+          pagingEnabled: true,
+          showsHorizontalScrollIndicator: false,
+        },
+        itemCountByPage: 4,
+        pagingIcons: {
+          left: <Text>Left</Text>,
+          right: <Text>Right</Text>,
+        },
+        tabBarItemStyle: {
+          width: 200,
+        },
         headerLeft: (props) => (
           <HeaderBackButton {...props} onPress={navigation.goBack} />
         ),
