@@ -117,6 +117,10 @@ type Props = {
    * Style object for the wrapper element.
    */
   style?: StyleProp<ViewStyle>;
+
+  tabCountPerPage?: number;
+
+  width?: number;
 };
 
 export default function BottomTabBarItem({
@@ -126,7 +130,9 @@ export default function BottomTabBarItem({
   icon,
   badge,
   badgeStyle,
+  tabCountPerPage,
   to,
+  width,
   button = ({
     children,
     style,
@@ -135,6 +141,10 @@ export default function BottomTabBarItem({
     accessibilityRole,
     ...rest
   }: BottomTabBarButtonProps) => {
+    if (style && width !== undefined && tabCountPerPage !== undefined) {
+      style = [...[style], { width: width / tabCountPerPage }];
+    }
+
     if (Platform.OS === 'web' && to) {
       // React Native Web doesn't forward `onClick` if we use `TouchableWithoutFeedback`.
       // We need to use `onClick` to be able to prevent default browser handling of links.

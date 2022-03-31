@@ -69,21 +69,17 @@ export default function BottomTabsScreen({
 
   return (
     <BottomTabs.Navigator
+      scrollViewProps={{
+        horizontal: true,
+        pagingEnabled: true,
+        showsHorizontalScrollIndicator: false,
+      }}
+      tabCountPerPage={4}
+      pagingIcons={{
+        left: <Text>Left</Text>,
+        right: <Text>Right</Text>,
+      }}
       screenOptions={{
-        scrollEnabled: true,
-        scrollViewProps: {
-          horizontal: true,
-          pagingEnabled: true,
-          showsHorizontalScrollIndicator: false,
-        },
-        itemCountByPage: 4,
-        pagingIcons: {
-          left: <Text>Left</Text>,
-          right: <Text>Right</Text>,
-        },
-        tabBarItemStyle: {
-          width: 200,
-        },
         headerLeft: (props) => (
           <HeaderBackButton {...props} onPress={navigation.goBack} />
         ),

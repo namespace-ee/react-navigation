@@ -33,6 +33,7 @@ type Props = BottomTabNavigationConfig & {
   scrollEnabled?: boolean;
   scrollViewProps?: ScrollViewProps;
   pagingIcons?: ScrollViewPagingIcons;
+  tabCountPerPage?: number;
 };
 
 export default function BottomTabView(props: Props) {
@@ -49,6 +50,7 @@ export default function BottomTabView(props: Props) {
     scrollEnabled,
     scrollViewProps,
     pagingIcons,
+    tabCountPerPage,
   } = props;
 
   const focusedRouteKey = state.routes[state.index].key;
@@ -80,6 +82,7 @@ export default function BottomTabView(props: Props) {
           tabBar({
             scrollEnabled,
             scrollViewProps,
+            tabCountPerPage: tabCountPerPage,
             pagingIcons,
             state: state,
             descriptors: descriptors,

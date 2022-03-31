@@ -155,7 +155,7 @@ export default function BottomTabBar({
   scrollEnabled,
   scrollViewProps,
   pagingIcons,
-  itemCountByPage = 4,
+  tabCountPerPage = 4,
 }: Props) {
   const { colors } = useTheme();
 
@@ -187,11 +187,11 @@ export default function BottomTabBar({
 
   const pages = React.useMemo(() => {
     if (scrollEnabled) {
-      return chunkArray(state.routes, itemCountByPage);
+      return chunkArray(state.routes, tabCountPerPage);
     } else {
       return [];
     }
-  }, [itemCountByPage, scrollEnabled, state.routes]);
+  }, [tabCountPerPage, scrollEnabled, state.routes]);
 
   const [isTabBarHidden, setIsTabBarHidden] = React.useState(!shouldShowTabBar);
   const [selectedPage, setSelectedPage] = React.useState<number>(0);
@@ -345,6 +345,7 @@ export default function BottomTabBar({
               focusedOptions={focusedOptions}
               layout={layout}
               navigation={navigation}
+              tabCountPerPage={tabCountPerPage}
             />
           </ScrollView>
         </View>
@@ -369,6 +370,7 @@ interface ITabRoutesProps {
   focusedOptions: BottomTabNavigationOptions;
   layout: { height: number; width: number };
   navigation: NavigationHelpers<ParamListBase, BottomTabNavigationEventMap>;
+  tabCountPerPage?: number;
 }
 
 const TabRoutes = ({
@@ -377,6 +379,7 @@ const TabRoutes = ({
   focusedOptions,
   layout,
   navigation,
+  tabCountPerPage,
 }: ITabRoutesProps): JSX.Element => {
   const dimensions = useSafeAreaFrame();
   const buildLink = useLinkBuilder();
@@ -447,6 +450,7 @@ const TabRoutes = ({
           >
             <NavigationRouteContext.Provider value={route}>
               <BottomTabItem
+                width={dimensions.width}
                 route={route}
                 focused={focused}
                 horizontal={hasHorizontalLabels}
@@ -473,6 +477,7 @@ const TabRoutes = ({
                 showLabel={tabBarShowLabel}
                 labelStyle={options.tabBarLabelStyle}
                 iconStyle={options.tabBarIconStyle}
+                tabCountPerPage={tabCountPerPage}
                 style={options.tabBarItemStyle}
               />
             </NavigationRouteContext.Provider>

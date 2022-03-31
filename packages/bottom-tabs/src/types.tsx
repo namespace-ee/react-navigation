@@ -262,7 +262,7 @@ export type BottomTabNavigationOptions = HeaderOptions & {
   /**
    * Count of tab items per page, when scroll is enabled
    */
-  itemCountByPage?: number;
+  tabCountPerPage?: number;
 };
 
 export type BottomTabDescriptor = Descriptor<
@@ -302,9 +302,10 @@ export type BottomTabNavigationConfig = {
   /**
    * Hanldes all bottom tab scrolling logic
    */
-
   scrollEnabled?: boolean;
   scrollViewProps?: ScrollViewProps;
+  pagingIcons?: ScrollViewPagingIcons;
+  tabCountPerPage?: number;
 };
 
 export type BottomTabHeaderProps = {
@@ -334,7 +335,7 @@ export type BottomTabBarProps = {
   scrollEnabled?: boolean;
   scrollViewProps?: ScrollViewProps;
   pagingIcons?: ScrollViewPagingIcons;
-  itemCountByPage?: number;
+  tabCountPerPage?: number;
 };
 
 export type BottomTabBarButtonProps = Omit<
